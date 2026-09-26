@@ -175,7 +175,7 @@ def find_cycles(student_id: int) -> list[dict[str, Any]]:
                         bname = conn.execute("SELECT name FROM students WHERE id=?", (b["id"],)).fetchone()["name"]
                         cycles.append({
                             "exchange": [
-                                {"from": "You", "to": bname, "skill": b["give_names"][0]},
+                                {"from": "You", "to": bname, "skill": me_teach[b["give_names"][0]]["name"]},
                                 {"from": bname, "to": c["name"], "skill": b["teaches"][s2]["name"]},
                                 {"from": c["name"], "to": "You", "skill": c_teaches[s3]["name"]},
                             ],
