@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS requests (
     receiver_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     teach_skill_id INTEGER NOT NULL REFERENCES skills(id),
     learn_skill_id INTEGER NOT NULL REFERENCES skills(id),
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected','completed')),
     created_at TEXT DEFAULT (datetime('now')),
     decided_at TEXT
 );
@@ -161,6 +161,40 @@ SEED = [
         "skills": [
             ("Mobile App Development", "Web", "teach", "expert"),
             ("Video Editing", "Creative", "learn", "beginner"),
+        ],
+    },
+    # --- deliberate 3-person exchange cycle: Neha -> Omar -> Priya -> Neha ---
+    {
+        "name": "Neha Kapoor", "college": "SRCC Delhi",
+        "bio": "Amateur photographer saving up for a better lens. Wants Spanish for travel.",
+        "skills": [
+            ("Photography", "Creative", "teach", "intermediate"),
+            ("Spanish", "Languages", "learn", "beginner"),
+        ],
+    },
+    {
+        "name": "Omar Sheikh", "college": "St. Xavier's Mumbai",
+        "bio": "Fluent in Spanish, helpless at spreadsheets. Looking to learn Excel.",
+        "skills": [
+            ("Spanish", "Languages", "teach", "expert"),
+            ("Excel", "Data", "learn", "beginner"),
+        ],
+    },
+    {
+        "name": "Priya Reddy", "college": "BITS Hyderabad",
+        "bio": "Excel wizard who has never owned a camera. Wants to learn photography.",
+        "skills": [
+            ("Excel", "Data", "teach", "expert"),
+            ("Photography", "Creative", "learn", "beginner"),
+        ],
+    },
+    # --- edge case: student with NO matches on the platform ---
+    {
+        "name": "Isha Kulkarni", "college": "Fergusson College Pune",
+        "bio": "History enthusiast. Searching for a niche skill community.",
+        "skills": [
+            ("Ancient History", "Other", "teach", "expert"),
+            ("Archaeology", "Other", "learn", "intermediate"),
         ],
     },
 ]

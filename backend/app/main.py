@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .db import get_conn, init_db
-from .matching import match_student
+from .matching import find_cycles, match_student
+from .normalize import normalize
 
 init_db()
 
@@ -56,7 +57,7 @@ def create_student(payload: StudentIn):
     for s in payload.skills:
         conn.execute(
             "INSERT INTO skills (student_id, name, category, direction, level) VALUES (?,?,?,?,?)",
-            (sid, s.name.strip(), s.category.strip(), s.direction, s.level),
+            (sid, normalize(s.name), s.category.strip(), s.direction, s.level),
         )
     conn.commit()
     return fetch_student(sid, conn)
@@ -102,11 +103,32 @@ def get_matches(sid: int):
     return {"student_id": sid, "matches": matches, "mutual_count": sum(1 for m in matches if m["type"] == "MUTUAL")}
 
 
+@app.post("/api/students/{sid}/cycles")
+def get_cycles(sid: int):
+    row = get_conn().execute("SELECT id FROM students WHERE id=?", (sid,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    cycles = find_cycles(sid)
+    return {"student_id": sid, "cycles": cycles, "cycle_count": len(cycles)}
+
+
 @app.post("/api/requests", status_code=201)
 def create_request(payload: RequestIn):
     if payload.sender_id == payload.receiver_id:
         raise HTTPException(status_code=400, detail="Cannot request yourself")
     conn = get_conn()
+    teach = conn.execute(
+        "SELECT id FROM skills WHERE id=? AND student_id=? AND direction='teach'",
+        (payload.teach_skill_id, payload.sender_id),
+    ).fetchone()
+    if teach is None:
+        raise HTTPException(status_code=400, detail="teach_skill_id must be a 'teach' skill belonging to the sender")
+    learn = conn.execute(
+        "SELECT id FROM skills WHERE id=? AND student_id=? AND direction='learn'",
+        (payload.learn_skill_id, payload.sender_id),
+    ).fetchone()
+    if learn is None:
+        raise HTTPException(status_code=400, detail="learn_skill_id must be a 'learn' skill belonging to the sender")
     dup = conn.execute(
         "SELECT id FROM requests WHERE sender_id=? AND receiver_id=? AND status='pending'",
         (payload.sender_id, payload.receiver_id),
@@ -153,6 +175,19 @@ def reject_request(rid: int):
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail="Request already decided")
     conn.execute("UPDATE requests SET status='rejected', decided_at=datetime('now') WHERE id=?", (rid,))
+    conn.commit()
+    return get_request_detail(rid, conn)
+
+
+@app.post("/api/requests/{rid}/complete")
+def complete_request(rid: int):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if row["status"] != "accepted":
+        raise HTTPException(status_code=409, detail="Only an accepted exchange can be completed")
+    conn.execute("UPDATE requests SET status='completed', decided_at=datetime('now') WHERE id=?", (rid,))
     conn.commit()
     return get_request_detail(rid, conn)
 
