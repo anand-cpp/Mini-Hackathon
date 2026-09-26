@@ -21,6 +21,11 @@ venv/
 .env.local
 .env.*.local
 
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
 # Logs
 *.log
 npm-debug.log*
